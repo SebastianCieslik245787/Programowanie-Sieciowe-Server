@@ -93,7 +93,10 @@ public class ServerWindowController {
             }
         });
     }
-
+    /*
+     * po wprowadzeniu servera jako osobny wątek wyskakiwał error o tym że probuje modyfikować elementy JavaFX w innym wątku niż wątku aplikacji
+     * znalazłem żeby użyć Platform.runLater na https://www.reddit.com/r/javahelp/comments/7qvqau/problem_with_updating_gui_javafx/
+     */
     private void logMessage(String message) {
         Platform.runLater(() -> serverLogsField.appendText(message + "\n"));
     }
