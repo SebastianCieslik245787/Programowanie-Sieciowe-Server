@@ -13,6 +13,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 
 public class ServerWindowController {
     @FXML
@@ -31,18 +32,21 @@ public class ServerWindowController {
     public Label errorLabel;
 
     private ServerSocket serverSocket = null;
-    private Socket clientSocket = null;
-    private BufferedReader inFromClient = null;
-    private DataOutputStream outToClient = null;
+    private Socket[] clientSocket;
+    private BufferedReader[] inFromClient;
+    private DataOutputStream[] outToClient;
+    private Integer[] clientPort;
+    private String[] clientAddress;
+    private boolean[] queue = {false, false, false};
+    private Thread[] clientThread = new Thread[3];
 
     private Boolean isActive = false;
-    private Boolean isClientConnected = false;
     private Integer clientCounter = 0;
-    private String clientAddress = "";
-    private Integer serverPort = 0;
-    String SERVER_ADDRESS = "0.0.0.0";
+    private Integer serverPort = 7;
+    private final String SERVER_ADDRESS = "0.0.0.0";
+    private Integer connectedClientsCoutner = 0;
     /*
-     * Użyłem osobnego wątku dla serwera żeby móc dynamicznie wprowadzać zmiany w aplikacji, poniewarz nie mogłem znaleść innego sensownego rozwiązania
+     * Użyłem osobnego wątku dla serwera żeby móc dynamicznie wprowadzać zmiany w aplikacji, ponieważ nie mogłem znaleśźć innego sensownego rozwiązania
      * https://stackoverflow.com/questions/55597189/how-to-update-my-javafx-gui-elements-while-program-is-running
      */
     private Thread serverThread = null;
@@ -148,48 +152,67 @@ public class ServerWindowController {
     }
 
     private void listenForClients() throws IOException, InterruptedException {
-        if (isActive) {
-            logMessage(getTime() + " Waiting for client connection...");
-        }
-        while (!isClientConnected && isActive) {
+        while (isActive) {
             try {
-                clientSocket = serverSocket.accept();
-                isClientConnected = true;
-                inFromClient = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-                outToClient = new DataOutputStream(clientSocket.getOutputStream());
-                clientAddress = clientSocket.getInetAddress().getHostAddress();
-            } catch (IOException _) {
-            }
-        }
-        if (isClientConnected) {
-            setClientsCounter();
-            logMessage(getTime() + " Client connected with number: #" + clientCounter + " and address: " + clientAddress);
-            listenForClientMessage();
+                Socket tempClientSocket = serverSocket.accept();
+                if(connectedClientsCoutner > 2){
+                    logMessage(getTime() + " Client can not connect queue is full!");
+                    DataOutputStream tempOutToClient = new DataOutputStream(tempClientSocket.getOutputStream());
+                    tempOutToClient.writeBytes("Server is busy!" + "\n");
+                    tempClientSocket.close();
+                }
+                else{
+                    BufferedReader tempInFromClient = new BufferedReader(new InputStreamReader(tempClientSocket.getInputStream()));
+                    DataOutputStream tempOutToClient = new DataOutputStream(tempClientSocket.getOutputStream());
+                    String tempClientAddress = tempClientSocket.getInetAddress().getHostAddress();
+                    int tempClientPort = tempClientSocket.getPort();
+                    setNewClient(tempClientSocket, tempClientAddress, tempClientPort, tempOutToClient, tempInFromClient);
+                }
+            } catch (IOException _) {}
         }
     }
 
-    private void listenForClientMessage() throws IOException, InterruptedException {
-        while (isClientConnected && isActive) {
-            try {
-                String clientMessage = inFromClient.readLine();
-                if(clientMessage == null) {
+    private void setNewClient(Socket clientSocket, String clientAddress, int clientPort, DataOutputStream outToClient, BufferedReader inFromClient) throws IOException, InterruptedException {
+        int index = 0;
+        for (int i = 0; i < 3;i++){
+            if(!queue[i]){
+                index = i;
+                break;
+            }
+        }
+        this.clientSocket[index] = clientSocket;
+        this.inFromClient[index] = inFromClient;
+        this.outToClient[index] = outToClient;
+        this.clientAddress[index] = clientAddress;
+        this.clientPort[index] = clientPort;
+        connectedClientsCoutner++;
+        setClientsCounter();
+        logMessage(getTime() + " Client connected with number: #" + index + " and address: " + clientAddress + " and port: " + clientPort);
+        clientThread[index] = new Thread(() -> {
+            listenForClientMessage(index);
+        });
+    }
+
+    private void listenForClientMessage(int index) throws IOException, InterruptedException {
+        while (isActive) {
+            if(inFromClient[index].ready()) {
+                try {
+                    String clientMessage = inFromClient[index].readLine();
+                    if (clientMessage == null) {
+                        logMessage(getTime() + getClientInfo() + " Client disconnected!");
+                        listenForClients();
+                    } else if (clientMessage.getBytes().length > 1024) {
+                        logMessage(getTime() + getClientInfo() + " Client has send too big message: (" + clientMessage.getBytes().length + " bytes)");
+                        sendMessageToClient("Your message was too big: (Message size: " + clientMessage.getBytes().length + " bytes | Max size: 1024 bytes)", index);
+                    } else {
+                        logMessage(getTime() + getClientInfo() + " Client has send a message: \"" + clientMessage + "\" (" + clientMessage.getBytes().length + " bytes)");
+                        sendMessageToClient(clientMessage, index);
+                    }
+
+                } catch (IOException e) {
                     logMessage(getTime() + getClientInfo() + " Client disconnected!");
-                    isClientConnected = false;
                     listenForClients();
                 }
-                else if (clientMessage.getBytes().length > 1024) {
-                    logMessage(getTime() + getClientInfo() + " Client has send too big message: (" + clientMessage.getBytes().length + " bytes)");
-                    sendMessageToClient("Your message was too big: (Message size: " + clientMessage.getBytes().length + " bytes | Max size: 1024 bytes)");
-                }
-                else {
-                    logMessage(getTime() + getClientInfo() + " Client has send a message: \"" + clientMessage + "\" (" + clientMessage.getBytes().length + " bytes)");
-                    sendMessageToClient(clientMessage);
-                }
-
-            } catch (IOException e) {
-                logMessage(getTime() + getClientInfo() + " Client disconnected!");
-                isClientConnected = false;
-                listenForClients();
             }
         }
     }
@@ -199,9 +222,9 @@ public class ServerWindowController {
         Platform.runLater(() -> clientsCounter.setText(String.valueOf(clientCounter)));
     }
 
-    private void sendMessageToClient(String message) throws IOException {
+    private void sendMessageToClient(String message, int index) throws IOException {
         try {
-            outToClient.writeBytes(message + "\n");
+            outToClient[index].writeBytes(message + "\n");
             logMessage(getTime() + getClientInfo() + " Message: \"" + message + "\" has sent to client! (" + message.getBytes().length + " bytes)");
         } catch (IOException e) {
             logMessage(getTime() + getClientInfo() + " Could not send message to client!");
@@ -209,6 +232,6 @@ public class ServerWindowController {
     }
 
     private String getClientInfo() {
-        return "[#" + clientCounter + " | " + clientAddress + ":" + serverPort + "]";
+        return "[#" + clientCounter + " | " + clientAddress + ":" + clientPort  + "]";
     }
 }
