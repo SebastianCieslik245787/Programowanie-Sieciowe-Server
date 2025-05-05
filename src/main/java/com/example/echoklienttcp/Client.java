@@ -79,5 +79,4 @@ public class Client {
         } catch (IOException e) {
             serverWindowController.logMessage(getClientInfo() + " Could not send message to client!");
         }
-    }
 }

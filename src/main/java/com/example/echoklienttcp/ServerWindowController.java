@@ -10,6 +10,7 @@ import javafx.scene.paint.Paint;
 import java.io.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 
 public class ServerWindowController {
     @FXML
@@ -27,10 +28,11 @@ public class ServerWindowController {
     @FXML
     public Label errorLabel;
 
+
     Server server;
 
     /*
-     * Użyłem osobnego wątku dla serwera żeby móc dynamicznie wprowadzać zmiany w aplikacji, poniewarz nie mogłem znaleść innego sensownego rozwiązania
+     * Użyłem osobnego wątku dla serwera żeby móc dynamicznie wprowadzać zmiany w aplikacji, ponieważ nie mogłem znaleśźć innego sensownego rozwiązania
      * https://stackoverflow.com/questions/55597189/how-to-update-my-javafx-gui-elements-while-program-is-running
      */
     private Thread serverThread = null;
