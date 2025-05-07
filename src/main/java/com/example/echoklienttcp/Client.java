@@ -24,8 +24,11 @@ public class Client {
         this.id = id;
     }
 
+    public Integer getId() {
+        return id;
+    }
+
     public void initialize() throws IOException {
-        System.out.println("2");
         this.inFromClient = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
         this.outToClient = new DataOutputStream(clientSocket.getOutputStream());
         this.clientAddress = clientSocket.getInetAddress().getHostAddress();
@@ -56,7 +59,7 @@ public class Client {
                 char[] buffer = new char[1024];
                 int bytesRead = inFromClient.read(buffer);
                 if (bytesRead == -1) {
-                    server.disconnectClient();
+                    server.disconnectClient(id);
                     isActive = false;
                     continue;
                 }
@@ -70,14 +73,13 @@ public class Client {
                 }
 
             } catch (IOException e) {
-                server.disconnectClient();
+                server.disconnectClient(id);
             }
         }
     }
 
     private void sendMessageToClient(String message) throws IOException {
         try {
-            System.out.println("4");
             outToClient.writeBytes(message);
             serverWindowController.logMessage(getClientInfo() + " Message: \"" + message + "\" has sent to client! (" + message.getBytes().length + " bytes)");
         } catch (IOException e) {

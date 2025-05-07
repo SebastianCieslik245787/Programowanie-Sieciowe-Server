@@ -7,10 +7,8 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.paint.Paint;
 
-import java.io.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 
 public class ServerWindowController {
     @FXML
@@ -27,6 +25,8 @@ public class ServerWindowController {
     public Label clientsCounter;
     @FXML
     public Label errorLabel;
+    @FXML
+    public TextArea activeClientsFiled;
 
 
     Server server;
@@ -119,5 +119,9 @@ public class ServerWindowController {
 
     public void setActiveClientsCounter(int activeClients) {
         Platform.runLater(() -> clientsCounter.setText(String.valueOf(activeClients)));
+    }
+
+    public void setActiveClientsFiled(String text) {
+        Platform.runLater(() -> activeClientsFiled.setText(text));
     }
 }
