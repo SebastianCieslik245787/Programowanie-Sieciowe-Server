@@ -25,6 +25,7 @@ public class Client {
     }
 
     public void initialize() throws IOException {
+        System.out.println("2");
         this.inFromClient = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
         this.outToClient = new DataOutputStream(clientSocket.getOutputStream());
         this.clientAddress = clientSocket.getInetAddress().getHostAddress();
@@ -33,13 +34,12 @@ public class Client {
         listenForMessage();
     }
 
-    public boolean closeConnectionWithServer(){
-        try{
+    public boolean closeConnectionWithServer() {
+        try {
             clientSocket.close();
             serverWindowController.logMessage(getClientInfo() + " has disconnected!");
             isActive = false;
-        }
-        catch(IOException e){
+        } catch (IOException e) {
             serverWindowController.logMessage(" Client can not disconnect: " + e.getMessage());
             return true;
         }
@@ -50,18 +50,21 @@ public class Client {
         return "[#" + id + " | " + clientAddress + ":" + server.getServerPort() + "]";
     }
 
-    private void listenForMessage(){
+    void listenForMessage() {
         while (isActive) {
             try {
-                String clientMessage = inFromClient.readLine();
-                if(clientMessage == null) {
+                char[] buffer = new char[1024];
+                int bytesRead = inFromClient.read(buffer);
+                if (bytesRead == -1) {
                     server.disconnectClient();
+                    isActive = false;
+                    continue;
                 }
-                else if (clientMessage.getBytes().length > 1024) {
+                String clientMessage = new String(buffer, 0, bytesRead);
+                if (clientMessage.getBytes().length > 1024) {
                     serverWindowController.logMessage(getClientInfo() + " Client has send too big message: (" + clientMessage.getBytes().length + " bytes)");
                     sendMessageToClient("Your message was too big: (Message size: " + clientMessage.getBytes().length + " bytes | Max size: 1024 bytes)");
-                }
-                else {
+                } else {
                     serverWindowController.logMessage(getClientInfo() + " Client has send a message: \"" + clientMessage + "\" (" + clientMessage.getBytes().length + " bytes)");
                     sendMessageToClient(clientMessage);
                 }
@@ -74,9 +77,11 @@ public class Client {
 
     private void sendMessageToClient(String message) throws IOException {
         try {
-            outToClient.writeBytes(message + "\n");
+            System.out.println("4");
+            outToClient.writeBytes(message);
             serverWindowController.logMessage(getClientInfo() + " Message: \"" + message + "\" has sent to client! (" + message.getBytes().length + " bytes)");
         } catch (IOException e) {
             serverWindowController.logMessage(getClientInfo() + " Could not send message to client!");
         }
+    }
 }

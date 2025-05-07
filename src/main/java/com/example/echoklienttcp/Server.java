@@ -41,14 +41,23 @@ public class Server {
         return true;
     }
 
-    public void listenForClients(){
+    public void listenForClients() {
         while ((activeClients < SERVER_CAPACITY) && isActive) {
+            System.out.println("1");
             try {
                 client = new Client(serverSocket.accept(), serverWindowController, clientCounter, this);
                 activeClients++;
                 clientCounter++;
                 serverWindowController.setActiveClientsCounter(activeClients);
-                client.initialize();
+                Thread clientThread = new Thread(() -> {
+                    try {
+                        client.initialize();
+                        client.listenForMessage();
+                    } catch (IOException e) {
+                        disconnectClient();
+                    }
+                });
+                clientThread.start();
             } catch (IOException _) {}
         }
     }
